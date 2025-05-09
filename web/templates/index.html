@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+
+{% block title %}FTP İstemci{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="row h-100 g-2">
+        <!-- Sol Panel - Bağlantı ve İşlemler -->
+        <div class="col-md-3 left-panel">
+            <!-- Bağlantı Formu -->
+            <div class="card connection-card">
+                <div class="card-header bg-primary text-white d-flex align-items-center">
+                    <i class="fas fa-plug me-2"></i>FTP Bağlantısı
+                </div>
+                <div class="card-body">
+                    <form id="connect-form">
+                        <div class="mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                <input type="text" class="form-control" id="host" name="host" placeholder="Sunucu" required>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-network-wired"></i></span>
+                                <input type="number" class="form-control" id="port" name="port" value="21" placeholder="Port">
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="username" name="username" placeholder="Kullanıcı" required>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" placeholder="Şifre" required>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-1">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-sign-in-alt me-1"></i>Bağlan
+                            </button>
+                            <button id="disconnect-btn" class="btn btn-danger w-100" style="display: none;">
+                                <i class="fas fa-sign-out-alt me-1"></i>Bağlantıyı Kes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Dizin İşlemleri -->
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex align-items-center">
+                    <i class="fas fa-folder me-2"></i>Dizin İşlemleri
+                </div>
+                <div class="card-body">
+                    <form id="mkdir-form" class="mb-2">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-folder-plus"></i></span>
+                            <input type="text" class="form-control" name="dir_name" placeholder="Yeni Klasör Adı" required>
+                            <button class="btn btn-success" type="submit">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <form id="rmdir-form">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-folder-minus"></i></span>
+                            <input type="text" class="form-control" name="dir_name" placeholder="Silinecek Klasör" required>
+                            <button class="btn btn-danger" type="submit">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Dosya Yükleme -->
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex align-items-center">
+                    <i class="fas fa-upload me-2"></i>Dosya Yükleme
+                </div>
+                <div class="card-body p-0">
+                    <div class="upload-zone" id="upload-zone">
+                        <div class="text-center p-2 border rounded" style="border-style: dashed !important;">
+                            <i class="fas fa-cloud-upload-alt mb-1"></i>
+                            <p class="mb-1">Dosyaları sürükleyin</p>
+                            <small class="text-muted d-block mb-1">veya</small>
+                            <button type="button" class="btn btn-info btn-sm" id="upload-trigger">
+                                <i class="fas fa-file-upload me-1"></i>Dosya Seç
+                            </button>
+                        </div>
+                        <div class="upload-list p-2" id="upload-list">
+                            <!-- Yüklenen dosyalar burada listelenecek -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sağ Panel - Dosya Listesi -->
+        <div class="col-md-9 right-panel">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <i class="fas fa-folder-open me-2"></i>
+                        <div class="breadcrumb-wrapper">
+                            <input type="text" class="form-control form-control-sm" id="current-path" value="." placeholder="Dizin Yolu">
+                        </div>
+                    </div>
+                    <div class="ms-2">
+                        <span class="badge bg-primary" id="file-count">0 öğe</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive file-list-wrapper">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 32px"></th>
+                                    <th>Ad</th>
+                                    <th style="width: 80px">Boyut</th>
+                                    <th style="width: 90px">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-list">
+                                <!-- Dosya listesi JavaScript ile doldurulacak -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bildirim Alanı -->
+<div id="alerts-container"></div>
+
+<!-- Yeni Klasör Modalı -->
+<div class="modal fade" id="newFolderModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0">Yeni Klasör</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="mkdir-form-modal">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-folder"></i></span>
+                        <input type="text" class="form-control" name="dir_name" placeholder="Klasör Adı" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer py-1">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-sm btn-success" id="mkdir-submit">Oluştur</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeniden Adlandırma Modalı -->
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0">Yeniden Adlandır</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rename-form">
+                    <input type="hidden" id="old-name" name="old_name">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-edit"></i></span>
+                        <input type="text" class="form-control" id="new-name" name="new_name" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer py-1">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-sm btn-primary" id="rename-submit">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gizli Dosya Yükleme Input'u -->
+<input type="file" id="file-upload" style="display: none" multiple>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let connected = false;
+
+    function showAlert(message, type = 'success') {
+        const alertDiv = $('<div>')
+            .addClass(`alert alert-${type} alert-dismissible fade show floating-alert`)
+            .html(`
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `);
+        $('#alerts-container').append(alertDiv);
+        setTimeout(() => alertDiv.alert('close'), 3000);
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function refreshFileList() {
+        if (!connected) return;
+        
+        const path = $('#current-path').val() || '.';
+        $.get(`/list?path=${encodeURIComponent(path)}`)
+            .done(response => {
+                if (response.status === 'success') {
+                    const tbody = $('#file-list').empty();
+                    $('#file-count').text(`${response.files.length} öğe`);
+                    
+                    if (path !== '.') {
+                        tbody.append(`
+                            <tr class="table-light">
+                                <td><i class="fas fa-level-up-alt text-secondary"></i></td>
+                                <td colspan="3">
+                                    <a href="#" class="parent-dir text-decoration-none text-secondary">..</a>
+                                </td>
+                            </tr>
+                        `);
+                    }
+                    
+                    response.files.forEach(file => {
+                        const parts = file.split(/\s+/);
+                        const permissions = parts[0];
+                        const size = parts[4];
+                        const name = parts.slice(8).join(' ');
+                        const isDir = permissions.startsWith('d');
+                        
+                        tbody.append(`
+                            <tr>
+                                <td>
+                                    <i class="fas fa-${isDir ? 'folder text-warning' : 'file text-primary'}"></i>
+                                </td>
+                                <td class="text-truncate" style="max-width: 200px;">
+                                    ${isDir ? `
+                                        <a href="#" class="open-dir text-decoration-none" data-path="${name}">${name}</a>
+                                    ` : name}
+                                </td>
+                                <td>${formatFileSize(parseInt(size))}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        ${isDir ? '' : `
+                                            <a href="/download?path=${encodeURIComponent(name)}" 
+                                               class="btn btn-outline-success btn-sm" 
+                                               title="İndir">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        `}
+                                        <button class="btn btn-outline-info btn-sm rename-btn" 
+                                                data-name="${name}" 
+                                                title="Yeniden Adlandır">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm delete-btn"
+                                                data-name="${name}"
+                                                title="Sil">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    showAlert('Dosya listesi alınamadı: ' + response.message, 'danger');
+                }
+            })
+            .fail(() => {
+                showAlert('Sunucu hatası oluştu', 'danger');
+            });
+    }
+
+    // Bağlantı işlemleri
+    $('#connect-form').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        $.post('/connect', Object.fromEntries(formData))
+            .done(response => {
+                if (response.status === 'success') {
+                    connected = true;
+                    showAlert('Bağlantı başarılı');
+                    $(this).find('button[type="submit"]').hide();
+                    $('#disconnect-btn').show();
+                    refreshFileList();
+                } else {
+                    showAlert('Bağlantı hatası: ' + response.message, 'danger');
+                }
+            })
+            .fail(() => {
+                showAlert('Sunucu hatası oluştu', 'danger');
+            });
+    });
+
+    $('#disconnect-btn').on('click', function() {
+        $.post('/disconnect')
+            .done(response => {
+                if (response.status === 'success') {
+                    connected = false;
+                    showAlert('Bağlantı kesildi');
+                    $(this).hide();
+                    $('#connect-form button[type="submit"]').show();
+                    $('#file-list').empty();
+                    $('#file-count').text('0 öğe');
+                } else {
+                    showAlert('Bağlantı kesme hatası: ' + response.message, 'danger');
+                }
+            })
+            .fail(() => {
+                showAlert('Sunucu hatası oluştu', 'danger');
+            });
+    });
+
+    // Dizin işlemleri
+    $('#mkdir-form').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        $.post('/mkdir', Object.fromEntries(formData))
+            .done(response => {
+                if (response.status === 'success') {
+                    showAlert('Klasör oluşturuldu');
+                    refreshFileList();
+                    this.reset();
+                } else {
+                    showAlert('Klasör oluşturma hatası: ' + response.message, 'danger');
+                }
+            })
+            .fail(() => {
+                showAlert('Sunucu hatası oluştu', 'danger');
+            });
+    });
+
+    $('#rmdir-form').on('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        if (confirm('Klasörü silmek istediğinize emin misiniz?')) {
+            $.post('/rmdir', Object.fromEntries(formData))
+                .done(response => {
+                    if (response.status === 'success') {
+                        showAlert('Klasör silindi');
+                        refreshFileList();
+                        this.reset();
+                    } else {
+                        showAlert('Klasör silme hatası: ' + response.message, 'danger');
+                    }
+                })
+                .fail(() => {
+                    showAlert('Sunucu hatası oluştu', 'danger');
+                });
+        }
+    });
+
+    // Dosya yükleme
+    let dropZone = document.getElementById('upload-zone');
+
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-hover');
+    });
+
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-hover');
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-hover');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    $('#upload-trigger').on('click', function() {
+        $('#file-upload').click();
+    });
+
+    $('#file-upload').on('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const progressDiv = $('<div>').addClass('progress mt-2').append(
+                $('<div>').addClass('progress-bar')
+                    .attr('role', 'progressbar')
+                    .css('width', '0%')
+                    .text('0%')
+            );
+            
+            $('#upload-list').append(progressDiv);
+            
+            $.ajax({
+                url: '/upload',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                xhr: function() {
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            progressDiv.find('.progress-bar')
+                                .css('width', percent + '%')
+                                .text(percent + '%');
+                        }
+                    });
+                    return xhr;
+                }
+            })
+            .done(response => {
+                if (response.status === 'success') {
+                    progressDiv.remove();
+                    showAlert(`${file.name} yüklendi`);
+                    refreshFileList();
+                } else {
+                    progressDiv.remove();
+                    showAlert(`${file.name} yüklenemedi: ${response.message}`, 'danger');
+                }
+            })
+            .fail(() => {
+                progressDiv.remove();
+                showAlert(`${file.name} yüklenirken hata oluştu`, 'danger');
+            });
+        });
+    }
+
+    // Dosya/Klasör silme
+    $(document).on('click', '.delete-btn', function() {
+        const name = $(this).data('name');
+        if (confirm(`"${name}" öğesini silmek istediğinize emin misiniz?`)) {
+            $.post('/delete', { name: name })
+                .done(response => {
+                    if (response.status === 'success') {
+                        showAlert('Öğe silindi');
+                        refreshFileList();
+                    } else {
+                        showAlert('Silme hatası: ' + response.message, 'danger');
+                    }
+                })
+                .fail(() => {
+                    showAlert('Sunucu hatası oluştu', 'danger');
+                });
+        }
+    });
+
+    // Yeniden adlandırma
+    $(document).on('click', '.rename-btn', function() {
+        const name = $(this).data('name');
+        $('#old-name').val(name);
+        $('#new-name').val(name);
+        $('#renameModal').modal('show');
+    });
+
+    $('#rename-submit').on('click', function() {
+        const formData = new FormData($('#rename-form')[0]);
+        
+        $.post('/rename', Object.fromEntries(formData))
+            .done(response => {
+                if (response.status === 'success') {
+                    showAlert('Yeniden adlandırma başarılı');
+                    refreshFileList();
+                    $('#renameModal').modal('hide');
+                } else {
+                    showAlert('Yeniden adlandırma hatası: ' + response.message, 'danger');
+                }
+            })
+            .fail(() => {
+                showAlert('Sunucu hatası oluştu', 'danger');
+            });
+    });
+
+    // Dizin gezinme
+    $(document).on('click', '.open-dir', function(e) {
+        e.preventDefault();
+        const path = $(this).data('path');
+        const currentPath = $('#current-path').val();
+        const newPath = path === '..' ? 
+            currentPath.split('/').slice(0, -1).join('/') || '.' :
+            (currentPath === '.' ? path : currentPath + '/' + path);
+        
+        $('#current-path').val(newPath);
+        refreshFileList();
+    });
+
+    $('#current-path').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            refreshFileList();
+        }
+    });
+</script>
+{% endblock %} 
